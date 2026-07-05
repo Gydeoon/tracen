@@ -124,7 +124,6 @@ if (!$trainee) { header("Location: index.php"); exit(); }
                     <div class="md:col-span-1">
                         <label class="block text-xs font-black text-gray-400 mb-2 uppercase tracking-wide">Estimated Rating</label>
                         <div id="ratingPreview" class="clean-input font-black text-gray-800 bg-white flex items-center justify-center select-none"><?php echo number_format($trainee['rating_score'] ?? 0); ?></div>
-                        <p class="text-[9px] text-gray-400 font-bold mt-1 leading-tight">Recalculated automatically from stats.</p>
                     </div>
                     
                     <div class="md:col-span-1">
@@ -194,8 +193,15 @@ if (!$trainee) { header("Location: index.php"); exit(); }
         // Mirrors includes/rating.php exactly, for live preview only.
         // The server recalculates on submit — this never controls what gets saved.
         function calculateRatingScore(spd, sta, pow, gut, wit) {
-            const weighted = (spd * 1.0) + (sta * 0.8) + (pow * 0.6) + (gut * 0.4) + (wit * 0.4);
-            return Math.round(weighted * 16);
+            const weights = { spd: 1.0, sta: 0.8, pow: 0.6, gut: 0.4, wit: 0.4 };
+            const stats = { spd, sta, pow, gut, wit };
+            let weighted = 0;
+            for (const key in stats) {
+                const value = Math.max(0, stats[key]);
+                const contribution = value * (1 + value / 2400);
+                weighted += contribution * weights[key];
+            }
+            return Math.round(weighted * 3.5);
         }
 
         function calculateFinalRank(score) {
