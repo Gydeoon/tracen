@@ -1,1 +1,0 @@
-<footer class="text-center text-gray-400 text-xs mt-12">&copy; Tracen Academy Tracker</footer></body></html>

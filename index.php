@@ -3,6 +3,8 @@ session_start();
 require_once 'config/database.php';
 
 $sort = isset($_GET['sort']) ? $_GET['sort'] : 'newest';
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$rank_filter = isset($_GET['rank_filter']) ? $_GET['rank_filter'] : '';
 
 $order_sql = "trainees.logged_at DESC"; 
 if ($sort === 'oldest') {
@@ -11,13 +13,37 @@ if ($sort === 'oldest') {
     $order_sql = "characters.name ASC";
 } elseif ($sort === 'stats_desc') {
     $order_sql = "(trainees.stat_speed + trainees.stat_stamina + trainees.stat_power + trainees.stat_guts + trainees.stat_wit) DESC";
+} elseif ($sort === 'rating_desc') {
+    $order_sql = "trainees.rating_score DESC";
 }
+
+$where_clauses = [];
+$params = [];
+
+if ($search !== '') {
+    $where_clauses[] = "characters.name LIKE :search";
+    $params[':search'] = '%' . $search . '%';
+}
+if ($rank_filter !== '') {
+    $where_clauses[] = "trainees.final_rank = :rank_filter";
+    $params[':rank_filter'] = $rank_filter;
+}
+
+$where_sql = count($where_clauses) > 0 ? "WHERE " . implode(" AND ", $where_clauses) : "";
 
 $query = "SELECT trainees.*, characters.name AS uma_name, characters.id AS char_id 
           FROM trainees 
           JOIN characters ON trainees.character_id = characters.id 
+          $where_sql
           ORDER BY $order_sql";
-$trainees = $pdo->query($query)->fetchAll();
+$stmt = $pdo->prepare($query);
+$stmt->execute($params);
+$trainees = $stmt->fetchAll();
+
+// Ranks actually present in the database, for the filter dropdown.
+$rank_order = ['US','UA','UB','UC','UD','UE','UF','UG','SS+','SS','S+','S','A+','A','B+','B','C+','C','D+','D','E+','E','F+','F','G+','G'];
+$existing_ranks = $pdo->query("SELECT DISTINCT final_rank FROM trainees WHERE final_rank IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+$available_ranks = array_values(array_filter($rank_order, fn($r) => in_array($r, $existing_ranks)));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -33,6 +59,8 @@ $trainees = $pdo->query($query)->fetchAll();
         .uma-primary-text { color: #8A73FF; }
         .clean-select { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; padding: 0.5rem 1rem; outline: none; transition: all 0.2s; cursor: pointer; font-weight: 700; color: #4B5563; font-size: 0.875rem;}
         .clean-select:focus { border-color: #8A73FF; box-shadow: 0 0 0 3px rgba(138, 115, 255, 0.2); }
+        .clean-search { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 9999px; padding: 0.5rem 1.25rem; outline: none; transition: all 0.2s; font-weight: 700; color: #4B5563; font-size: 0.875rem;}
+        .clean-search:focus { border-color: #8A73FF; box-shadow: 0 0 0 3px rgba(138, 115, 255, 0.2); }
     </style>
 </head>
 <body class="antialiased min-h-screen pb-12">
@@ -46,15 +74,31 @@ $trainees = $pdo->query($query)->fetchAll();
                 <p class="text-[10px] font-bold text-gray-400 tracking-widest uppercase text-center md:text-left">Trainee Database Log</p>
             </div>
             
-            <div class="flex items-center gap-4">
-                <form action="index.php" method="GET" class="m-0">
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <form action="index.php" method="GET" class="flex flex-wrap items-center justify-center gap-3 m-0">
+                    <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search by character..." class="clean-search shadow-sm w-48">
+
+                    <select name="rank_filter" onchange="this.form.submit()" class="clean-select shadow-sm">
+                        <option value="">All Ranks</option>
+                        <?php foreach($available_ranks as $r): ?>
+                            <option value="<?php echo htmlspecialchars($r); ?>" <?php if($rank_filter === $r) echo 'selected'; ?>><?php echo htmlspecialchars($r); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+
                     <select name="sort" onchange="this.form.submit()" class="clean-select shadow-sm">
                         <option value="newest" <?php if($sort == 'newest') echo 'selected'; ?>>Sort: Newest First</option>
                         <option value="oldest" <?php if($sort == 'oldest') echo 'selected'; ?>>Sort: Oldest First</option>
                         <option value="stats_desc" <?php if($sort == 'stats_desc') echo 'selected'; ?>>Sort: Highest Total Stats</option>
+                        <option value="rating_desc" <?php if($sort == 'rating_desc') echo 'selected'; ?>>Sort: Highest Rating</option>
                         <option value="name_asc" <?php if($sort == 'name_asc') echo 'selected'; ?>>Sort: Name (A-Z)</option>
                     </select>
+
+                    <button type="submit" class="uma-primary text-white px-5 py-2 rounded-full font-bold shadow-md hover:scale-105 transition-transform duration-200 text-sm">Filter</button>
+                    <?php if($search !== '' || $rank_filter !== ''): ?>
+                        <a href="index.php" class="text-xs font-bold text-gray-400 hover:text-gray-700 underline">Clear</a>
+                    <?php endif; ?>
                 </form>
+
                 <a href="add-trainee.php" class="uma-primary text-white px-6 py-2.5 rounded-full font-bold shadow-md hover:scale-105 transition-transform duration-200 text-sm whitespace-nowrap">
                     + Register New Trainee
                 </a>
@@ -67,6 +111,14 @@ $trainees = $pdo->query($query)->fetchAll();
             <div class="bg-white border-l-4 border-[#8A73FF] text-gray-700 p-4 rounded shadow-sm mb-8 font-bold">
                 ✓ <?php echo $_SESSION['message']; unset($_SESSION['message']); ?>
             </div>
+        <?php endif; ?>
+
+        <?php if($search !== '' || $rank_filter !== ''): ?>
+            <p class="text-sm font-bold text-gray-400 mb-4">
+                Showing <?php echo count($trainees); ?> result<?php echo count($trainees) !== 1 ? 's' : ''; ?>
+                <?php if($search !== ''): ?> for "<span class="text-gray-700"><?php echo htmlspecialchars($search); ?></span>"<?php endif; ?>
+                <?php if($rank_filter !== ''): ?> ranked <span class="text-gray-700"><?php echo htmlspecialchars($rank_filter); ?></span><?php endif; ?>
+            </p>
         <?php endif; ?>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -120,7 +172,13 @@ $trainees = $pdo->query($query)->fetchAll();
                 <?php endforeach; ?>
             <?php else: ?>
                 <div class="col-span-full bg-white p-12 text-center rounded-2xl shadow-sm border border-gray-100">
-                    <p class="text-gray-400 font-bold text-lg">No training data available. Please register a new character.</p>
+                    <p class="text-gray-400 font-bold text-lg">
+                        <?php if($search !== '' || $rank_filter !== ''): ?>
+                            No trainees match your search. <a href="index.php" class="uma-primary-text underline">Clear filters</a> to see everyone.
+                        <?php else: ?>
+                            No training data available. Please register a new character.
+                        <?php endif; ?>
+                    </p>
                 </div>
             <?php endif; ?>
         </div>
