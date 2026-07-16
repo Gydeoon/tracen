@@ -7,8 +7,6 @@ $char_stmt = $pdo->query("SELECT * FROM characters ORDER BY name ASC");
 $characters = $char_stmt->fetchAll();
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Rating Score and Final Rank are derived server-side from the
-    // submitted stats, never trusted from the client.
     $score = calculateRatingScore(
         $_POST['stat_speed'], $_POST['stat_stamina'], $_POST['stat_power'],
         $_POST['stat_guts'], $_POST['stat_wit']
@@ -38,7 +36,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 }
 
 if (!isset($_GET['id'])) { header("Location: index.php"); exit(); }
-$stmt = $pdo->prepare("SELECT * FROM trainees WHERE id = :id");
+$stmt = $pdo->prepare("SELECT trainees.*, characters.name AS uma_name FROM trainees JOIN characters ON trainees.character_id = characters.id WHERE trainees.id = :id");
 $stmt->execute([':id' => $_GET['id']]);
 $trainee = $stmt->fetch();
 if (!$trainee) { header("Location: index.php"); exit(); }
@@ -190,8 +188,6 @@ if (!$trainee) { header("Location: index.php"); exit(); }
 
         document.getElementById('charSelect').addEventListener('change', function() { updateImage(this.value); });
 
-        // Mirrors includes/rating.php exactly, for live preview only.
-        // The server recalculates on submit — this never controls what gets saved.
         function calculateRatingScore(spd, sta, pow, gut, wit) {
             const weights = { spd: 1.0, sta: 0.8, pow: 0.6, gut: 0.4, wit: 0.4 };
             const stats = { spd, sta, pow, gut, wit };
@@ -251,7 +247,6 @@ if (!$trainee) { header("Location: index.php"); exit(); }
             document.getElementById(id).addEventListener('input', recalculate);
         });
 
-        // Trigger on load: preview image, aptitude panel, and recalculated rating
         window.addEventListener('DOMContentLoaded', () => {
             updateImage(document.getElementById('charSelect').value);
             recalculate();

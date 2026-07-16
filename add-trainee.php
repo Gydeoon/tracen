@@ -5,10 +5,12 @@ require_once 'includes/rating.php';
 
 $char_stmt = $pdo->query("SELECT * FROM characters ORDER BY name ASC");
 $characters = $char_stmt->fetchAll();
+$json_characters = json_encode($characters);
+
+// Cek apakah ada kiriman data karakter otomatis via URL GET Parameter
+$auto_select_id = isset($_GET['char_id']) ? trim($_GET['char_id']) : '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Rating Score and Final Rank are now derived server-side from the
-    // submitted stats, never trusted from the client.
     $score = calculateRatingScore(
         $_POST['stat_speed'], $_POST['stat_stamina'], $_POST['stat_power'],
         $_POST['stat_guts'], $_POST['stat_wit']
@@ -86,9 +88,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <div>
                     <label class="block text-xs font-black text-gray-400 mb-2 uppercase tracking-wide">Select Uma Musume</label>
                     <select name="character_id" id="charSelect" required class="clean-input font-bold text-gray-800 cursor-pointer">
-                        <option value="" disabled selected>-- Select Character --</option>
+                        <option value="" disabled <?php if(empty($auto_select_id)) echo 'selected'; ?>>-- Select Character --</option>
                         <?php foreach($characters as $c): ?>
-                            <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?></option>
+                            <option value="<?php echo $c['id']; ?>" <?php if($c['id'] === $auto_select_id) echo 'selected'; ?>>
+                                <?php echo htmlspecialchars($c['name']); ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -129,7 +133,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 
     <script>
-        const CHAR_DATA = <?php echo json_encode(array_column($characters, null, 'id')); ?>;
+        const CHAR_DATA = <?php echo $json_characters; ?>;
+        const CHAR_INDEXED = {};
+        CHAR_DATA.forEach(c => { CHAR_INDEXED[c.id] = c; });
 
         const APT_COLORS = {
             'S': 'bg-yellow-400 text-yellow-900', 'A': 'bg-orange-400 text-white',
@@ -148,16 +154,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if (!char) { panel.classList.add('hidden'); return; }
             panel.classList.remove('hidden');
             document.getElementById('aptTrack').innerHTML = aptBadge('TURF', char.apt_turf) + aptBadge('DIRT', char.apt_dirt);
+            
+            // GLOBALLY UPDATED: Jarak lari pertama diubah labelnya dari SHORT menjadi SPRINT
             document.getElementById('aptDistance').innerHTML =
-                aptBadge('SHORT', char.apt_short) + aptBadge('MILE', char.apt_mile) +
+                aptBadge('SPRINT', char.apt_short) + aptBadge('MILE', char.apt_mile) +
                 aptBadge('MEDIUM', char.apt_medium) + aptBadge('LONG', char.apt_long);
+                
             document.getElementById('aptStrategy').innerHTML =
                 aptBadge('RUN', char.apt_runner) + aptBadge('LEAD', char.apt_leader) +
                 aptBadge('BTWN', char.apt_betweener) + aptBadge('CHASE', char.apt_chaser);
         }
 
         function updateImage(charId) {
-            const char = CHAR_DATA[charId];
+            const char = CHAR_INDEXED[charId];
             renderAptitudes(char);
             if(charId) {
                 const prefix = charId.substring(0, 4);
@@ -172,8 +181,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         document.getElementById('charSelect').addEventListener('change', function() { updateImage(this.value); });
 
-        // Mirrors includes/rating.php exactly, for live preview only.
-        // The server recalculates on submit — this never controls what gets saved.
         function calculateRatingScore(spd, sta, pow, gut, wit) {
             const weights = { spd: 1.0, sta: 0.8, pow: 0.6, gut: 0.4, wit: 0.4 };
             const stats = { spd, sta, pow, gut, wit };
@@ -240,6 +247,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         ['stat_speed','stat_stamina','stat_power','stat_guts','stat_wit'].forEach(id => {
             document.getElementById(id).addEventListener('input', recalculate);
+        });
+
+        // Trigger otomatis saat halaman dimuat (untuk skenario lemparan dari katalog karakter)
+        window.addEventListener('DOMContentLoaded', () => {
+            const currentSelection = document.getElementById('charSelect').value;
+            if(currentSelection) {
+                updateImage(currentSelection);
+            }
         });
     </script>
 </body>

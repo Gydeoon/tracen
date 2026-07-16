@@ -40,7 +40,6 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $trainees = $stmt->fetchAll();
 
-// Ranks actually present in the database, for the filter dropdown.
 $rank_order = ['US','UA','UB','UC','UD','UE','UF','UG','SS+','SS','S+','S','A+','A','B+','B','C+','C','D+','D','E+','E','F+','F','G+','G'];
 $existing_ranks = $pdo->query("SELECT DISTINCT final_rank FROM trainees WHERE final_rank IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
 $available_ranks = array_values(array_filter($rank_order, fn($r) => in_array($r, $existing_ranks)));
@@ -68,13 +67,15 @@ $available_ranks = array_values(array_filter($rank_order, fn($r) => in_array($r,
     <nav class="bg-white shadow-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
-                <h1 class="text-2xl font-black tracking-tight text-gray-900 uppercase italic text-center md:text-left">
-                    Tracen <span class="uma-primary-text">Academy</span>
-                </h1>
+                <a href="index.php">
+                    <h1 class="text-2xl font-black tracking-tight text-gray-900 uppercase italic text-center md:text-left">
+                        Tracen <span class="uma-primary-text">Academy</span>
+                    </h1>
+                </a>
                 <p class="text-[10px] font-bold text-gray-400 tracking-widest uppercase text-center md:text-left">Trainee Database Log</p>
             </div>
             
-            <div class="flex flex-wrap items-center justify-center gap-3">
+            <div class="flex flex-wrap items-center justify-center gap-4">
                 <form action="index.php" method="GET" class="flex flex-wrap items-center justify-center gap-3 m-0">
                     <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search by character..." class="clean-search shadow-sm w-48">
 
@@ -98,6 +99,13 @@ $available_ranks = array_values(array_filter($rank_order, fn($r) => in_array($r,
                         <a href="index.php" class="text-xs font-bold text-gray-400 hover:text-gray-700 underline">Clear</a>
                     <?php endif; ?>
                 </form>
+
+                <div class="h-6 w-[1px] bg-gray-200 hidden md:block"></div>
+
+                <div class="flex items-center gap-4 font-bold text-sm text-gray-500">
+                    <a href="index.php" class="uma-primary-text border-b-2 border-[#8A73FF] pb-1">Dashboard</a>
+                    <a href="characters.php" class="hover:text-[#8A73FF] transition">Characters</a>
+                </div>
 
                 <a href="add-trainee.php" class="uma-primary text-white px-6 py-2.5 rounded-full font-bold shadow-md hover:scale-105 transition-transform duration-200 text-sm whitespace-nowrap">
                     + Register New Trainee
@@ -128,8 +136,8 @@ $available_ranks = array_values(array_filter($rank_order, fn($r) => in_array($r,
                         
                         <div class="relative w-full aspect-[4/5] bg-gray-100 flex items-end justify-center overflow-hidden border-b border-gray-100">
                             <?php 
-                                $prefix = substr($t['char_id'], 0, 4);
-                                $local_image = "assets/images/characters/chara_stand_{$prefix}_{$t['char_id']}.png";
+                                $prefix = substr($t['character_id'], 0, 4);
+                                $local_image = "assets/images/characters/chara_stand_{$prefix}_{$t['character_id']}.png";
                             ?>
                             <img src="<?php echo htmlspecialchars($local_image); ?>" 
                                  alt="<?php echo htmlspecialchars($t['uma_name']); ?>" 
@@ -145,6 +153,11 @@ $available_ranks = array_values(array_filter($rank_order, fn($r) => in_array($r,
                                 <?php if($t['final_rank']): ?>
                                     <span class="bg-[#FFE5F1] text-[#FF6699] px-3 py-1 rounded-full text-xs font-black shadow-sm border border-[#FFB3D9]">
                                         RANK: <?php echo htmlspecialchars($t['final_rank']); ?>
+                                    </span>
+                                <?php endif; ?>
+                                <?php if($t['rating_score']): ?>
+                                    <span class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-black shadow-sm border border-indigo-100">
+                                        Score: <?php echo number_format($t['rating_score']); ?>
                                     </span>
                                 <?php endif; ?>
                             </div>

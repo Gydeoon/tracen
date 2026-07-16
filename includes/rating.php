@@ -36,9 +36,6 @@ function calculateRatingScore($spd, $sta, $pow, $gut, $wit): int
     $weighted = 0.0;
     foreach ($stats as $key => $value) {
         $value = max(0, (int) $value);
-        // Each stat's own contribution accelerates as it climbs, so
-        // concentrating points into fewer stats scores higher than
-        // spreading the same total thin across all five.
         $contribution = $value * (1 + $value / 2400);
         $weighted += $contribution * $weights[$key];
     }
