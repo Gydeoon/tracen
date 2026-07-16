@@ -7,7 +7,7 @@ try {
     $pdo->exec("CREATE DATABASE IF NOT EXISTS $db_name");
     $pdo->exec("USE $db_name");
 
-    // Wiping current tables to perform a clean deployment for the new massive roster
+    // Wiping current tables to perform a clean deployment
     $pdo->exec("DROP TABLE IF EXISTS trainees");
     $pdo->exec("DROP TABLE IF EXISTS characters");
 
@@ -36,7 +36,6 @@ try {
         FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE
     )");
 
-    // 3. Combined Master Array (Originals + Prior Batch + 40 Brand New Characters)
     $characters = [
         '100702' => ['Gold Ship (Summer)', [96, 113, 137, 89, 115], [0, 0, 20, 0, 10], ['A', 'G'], ['G', 'C', 'A', 'A'], ['G', 'B', 'B', 'A']],
         '101303' => ['Mejiro McQueen (Summer)', [92, 120, 93, 110, 135], [0, 0, 0, 10, 20], ['A', 'G'], ['G', 'G', 'A', 'A'], ['B', 'A', 'E', 'F']],
@@ -109,7 +108,6 @@ try {
         '101701' => ['Symboli Rudolf', [90, 105, 95, 95, 90], [0, 20, 0, 0, 10], ['A', 'G'], ['G', 'E', 'A', 'A'], ['G', 'A', 'A', 'G']]
     ];
 
-    // 4. Executing the Data Population
     $stmt = $pdo->prepare("INSERT INTO characters VALUES (?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?, ?,?,?,?, ?,?,?,?)");
     foreach ($characters as $id => $d) {
         $prefix = substr($id, 0, 4);
